@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="INFO">
     <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>STDOUT %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg MDC:[%X{size} / %X{checkedOutCount}/ {maxSize}]%n</pattern>
+            </encoder>
+        </appender>
+        <Console name="Console" target="SYSTEM_OUT" class="ch.qos.logback.core.ConsoleAppender">
+            <PatternLayout pattern="CONSOLE: %d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg MDC: [%X{size} / %X{checkedOutCount} / {maxSize}]%n"/>
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.mongodb.driver.connection" level="ALL"/>
-        <Root level="OFF">
+        <!-- Logger name="org.mongodb.driver.client" level="TRACE"/ -->
+        <Logger name="org.mongodb.driver" level="DEBUG"/>
+        <Root level="INFO">
             <AppenderRef ref="Console"/>
         </Root>
     </Loggers>

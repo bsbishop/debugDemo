@@ -1,12 +1,15 @@
 import static com.mongodb.client.model.Filters.eq;
 // import static com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureDSA.URI;
-import static java.lang.Thread.sleep;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
-import com.mongodb.management.JMXConnectionPoolListener;
+import com.mongodb.ce.PoolStatsListener.PoolStatsListener;
+import com.mongodb.event.*;
+// import com.mongodb.management.ConnectionPoolStatisticsMBean;
+// import com.mongodb.management.JMXConnectionPoolListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import org.bson.Document;
 
@@ -14,16 +17,55 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.management.*;
+
+
 
 public class QuickStart {
+    static Logger logger;
     public static void main( String[] args ) {
-        Logger logger = LoggerFactory.getLogger(QuickStart.class);
-        logger.info("Starting...");
+        logger = LoggerFactory.getLogger(QuickStart.class);
+        logger.debug("BSB Starting...");
 
         // Replace the placeholder with your MongoDB deployment's connection string
         ConnectionString uri = new ConnectionString("mongodb+srv://bsbishop:wpxy699M!@sandbox.vcdhe.mongodb.net/?retryWrites=true&w=majority&appName=sandbox");
 
-        JMXConnectionPoolListener connectionPoolListener = new JMXConnectionPoolListener();
+        // JMXConnectionPoolListener connectionPoolListener = new JMXConnectionPoolListener();
+
+//        PoolStatsListener poolStatsListener = new PoolStatsListener();
+
+// Set poolStats MDC before logging
+//        MDC.put("poolStats", poolStatsListener.getCurrentStats());
+ //       Document result = database.runCommand(ping); // run some ops
+// clear it
+//        MDC.clear();
+
+        PoolStatsListener connectionPoolListener = new PoolStatsListener() {
+            @Override
+            public void connectionCheckOutStarted(ConnectionCheckOutStartedEvent e) {
+                logger.info("CheckoutStarted server={} cluster={}",
+                        e.getServerId().getAddress(), e.getServerId().getClusterId().getValue());
+            }
+
+            @Override
+            public void connectionCheckedOut(ConnectionCheckedOutEvent e) {
+                // logger.debug("CheckedOut connId={} server={}", e.getConnectionId(), e.getServerId().getAddress());
+            }
+
+            @Override
+            public void connectionCheckOutFailed(ConnectionCheckOutFailedEvent e) {
+                logger.warn("CheckoutFailed reason={} server={}", e.getReason(), e.getServerId().getAddress());
+            }
+
+            @Override
+            public void connectionCheckedIn(ConnectionCheckedInEvent e) {
+                // logger.debug("CheckedIn  connId={} server={}", e.getConnectionId(), e.getServerId().getAddress());
+            }
+        };
+
+        MDC.put("size", String.valueOf(connectionPoolListener.getSize()));
+        MDC.put("checkedOutCount", String.valueOf(connectionPoolListener.getCheckedOutCount()));
+        // MDC.put("maxSize", String.valueOf(connectionPoolListener.getMaxSize()));
 
         MongoClientSettings settings =
                 MongoClientSettings.builder()
@@ -34,12 +76,14 @@ public class QuickStart {
         try (MongoClient mongoClient = MongoClients.create(settings)) {
             System.out.println("Navigate to JConsole to see your connection pools...");
             // Pauses the code execution so you can navigate to JConsole and inspect your connection pools
-            Thread.sleep(30 * 1000);
-            System.out.println("Starting...");
-            for (int i = 0; i < 100000; i++){
+            // Thread.sleep(30 * 1000);
+            // System.out.println("Starting...");
+            for (int i = 0; i < 1; i++){
+
                 MongoDatabase database = mongoClient.getDatabase("sample_mflix");
                 MongoCollection<Document> collection = database.getCollection("movies");
                 Document doc = collection.find(eq("title", "Back to the Future")).first();
+                // logger.info(connectionPoolListener.toString());
                 if (doc != null) {
                     System.out.println(doc.toJson());
                 } else {
@@ -51,5 +95,7 @@ public class QuickStart {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        MDC.clear();
     }
 }
