@@ -1,142 +1,107 @@
-import static com.mongodb.client.model.Filters.eq;
-// import static com.sun.org.apache.xml.internal.security.algorithms.implementations.SignatureDSA.URI;
-
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
-import com.mongodb.ce.PoolStatsListener.PoolStatsListener;
-import com.mongodb.event.*;
-// import com.mongodb.management.ConnectionPoolStatisticsMBean;
-// import com.mongodb.management.JMXConnectionPoolListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-import java.util.concurrent.CountDownLatch;
-
-import org.bson.Document;
-
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.management.*;
+import com.mongodb.monitoring.LoggingPoolMonitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.mongodb.client.model.Filters.eq;
 
+/**
+ * Multi-threaded example showing proper MongoDB client setup with pool monitoring.
+ * The LoggingPoolMonitor handles all pool logging automatically.
+ * Tests connection pool behavior under concurrent load.
+ */
 public class QuickStart {
-    static Logger logger;
-    static volatile Integer maxPoolSize = null;
-    static CountDownLatch poolCreatedLatch = new CountDownLatch(1);
-    public static void main( String[] args ) {
-        logger = LoggerFactory.getLogger(QuickStart.class);
-        logger.debug("BSB Starting...");
 
-        // Replace the placeholder with your MongoDB deployment's connection string
-        ConnectionString uri = new ConnectionString("mongodb+srv://userid:password@sandbox.vcdhe.mongodb.net/?retryWrites=true&w=majority&appName=sandbox");
+    private static final Logger logger = LoggerFactory.getLogger(QuickStart.class);
 
-        PoolStatsListener connectionPoolListener = new PoolStatsListener() {
-            @Override
-            public void connectionPoolCreated(ConnectionPoolCreatedEvent e) {
-                super.connectionPoolCreated(e);
-                // Store max size for main thread to use
-                maxPoolSize = getMaxSize();
-                poolCreatedLatch.countDown();
-            }
+    private static final List<String> MOVIE_TITLES = Arrays.asList(
+        "The Great Train Robbery", "Traffic in Souls", "Gertie the Dinosaur", "Civilization",
+        "Where Are My Children?", "Wild and Woolly", "Salomè", "Three Ages", "The Iron Horse",
+        "The Black Pirate", "The Strong Man", "It", "Wings", "Laugh, Clown, Laugh",
+        "Steamboat Willie", "Disraeli", "Hallelujah", "David Golder", "Little Caesar",
+        "Morocco", "Dishonored", "The Guardsman", "The Red Head", "Smilin' Through",
+        "The Power and the Glory", "Queen Christina", "She Done Him Wrong", "Zoo in Budapest",
+        "The Barretts of Wimpole Street", "Broadway Bill", "Masquerade in Vienna", "Toni",
+        "Moscow Laughs", "Wonder Bar", "The Band Concert", "Alice Adams", "Broadway Melody of 1936",
+        "David Copperfield", "The Dark Angel", "A Corner in Wheat", "Back to the Future"
+    );
 
-            @Override
-            public void connectionCreated(ConnectionCreatedEvent e) {
-                super.connectionCreated(e);
-                MDC.put("size", String.valueOf(getSize()));
-                // Update maxSize if it was set
-                if (maxPoolSize != null) {
-                    MDC.put("maxSize", String.valueOf(maxPoolSize));
-                }
-            }
-
-            @Override
-            public void connectionClosed(ConnectionClosedEvent e) {
-                super.connectionClosed(e);
-                MDC.put("size", String.valueOf(getSize()));
-            }
-
-            @Override
-            public void connectionCheckOutStarted(ConnectionCheckOutStartedEvent e) {
-                // Update MDC with current pool stats
-                if (maxPoolSize != null) {
-                    MDC.put("maxSize", String.valueOf(maxPoolSize));
-                }
-                MDC.put("size", String.valueOf(getSize()));
-                MDC.put("checkedOutCount", String.valueOf(getCheckedOutCount()));
-
-                logger.info("CheckoutStarted server={} cluster={}",
-                        e.getServerId().getAddress(), e.getServerId().getClusterId().getValue());
-            }
-
-            @Override
-            public void connectionCheckedOut(ConnectionCheckedOutEvent e) {
-                super.connectionCheckedOut(e);
-                // Update MDC after the count is incremented
-                MDC.put("checkedOutCount", String.valueOf(getCheckedOutCount()));
-                MDC.put("size", String.valueOf(getSize()));
-                if (maxPoolSize != null) {
-                    MDC.put("maxSize", String.valueOf(maxPoolSize));
-                }
-            }
-
-            @Override
-            public void connectionCheckOutFailed(ConnectionCheckOutFailedEvent e) {
-                logger.warn("CheckoutFailed reason={} server={}", e.getReason(), e.getServerId().getAddress());
-            }
-
-            @Override
-            public void connectionCheckedIn(ConnectionCheckedInEvent e) {
-                super.connectionCheckedIn(e);
-                // Update MDC after the count is decremented
-                MDC.put("checkedOutCount", String.valueOf(getCheckedOutCount()));
-                MDC.put("size", String.valueOf(getSize()));
-                if (maxPoolSize != null) {
-                    MDC.put("maxSize", String.valueOf(maxPoolSize));
-                }
-            }
-        };
-
-        // Note: These will be 0/null until connectionPoolCreated event fires
-        MDC.put("size", String.valueOf(connectionPoolListener.getSize()));
-        MDC.put("checkedOutCount", String.valueOf(connectionPoolListener.getCheckedOutCount()));
-        MDC.put("maxSize", "0"); // Initial value, will be updated after pool creation
-
-        MongoClientSettings settings =
-                MongoClientSettings.builder()
-                        .applyConnectionString(uri)
-                        .applyToConnectionPoolSettings(builder -> builder.addConnectionPoolListener(connectionPoolListener))
-                        .build();
-
-        try (MongoClient mongoClient = MongoClients.create(settings)) {
-            for (int i = 0; i < 1; i++){
-
-                MongoDatabase database = mongoClient.getDatabase("sample_mflix");
-                MongoCollection<Document> collection = database.getCollection("movies");
-
-                // Wait for pool to be created and update MDC
-                try {
-                    poolCreatedLatch.await();
-                    if (maxPoolSize != null) {
-                        MDC.put("maxSize", String.valueOf(maxPoolSize));
-                    }
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                }
-                Document doc = collection.find(eq("title", "Back to the Future")).first();
-
-                if (doc != null) {
-                    System.out.println(doc.toJson());
-                } else {
-                    System.out.println("No matching documents found.");
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    public static void main(String[] args) {
+        String uri = System.getenv("MONGODB_URI");
+        if (uri == null) {
+            logger.error("MONGODB_URI environment variable must be set");
+            System.exit(1);
         }
 
-        MDC.clear();
+        // Standard MongoDB client setup with one additional line for monitoring
+        MongoClientSettings settings = MongoClientSettings.builder()
+                .applyConnectionString(new ConnectionString(uri))
+                .applyToConnectionPoolSettings(builder ->
+                    builder.addConnectionPoolListener(new LoggingPoolMonitor()))
+                .build();
+
+        try (MongoClient client = MongoClients.create(settings)) {
+            logger.info("Starting multi-threaded movie search with {} threads...", MOVIE_TITLES.size());
+
+            // Create thread pool for concurrent searches
+            ExecutorService executor = Executors.newFixedThreadPool(10);
+            AtomicInteger foundCount = new AtomicInteger(0);
+            AtomicInteger notFoundCount = new AtomicInteger(0);
+
+            // Submit search tasks for each movie
+            for (int i = 0; i < MOVIE_TITLES.size(); i++) {
+                final String title = MOVIE_TITLES.get(i);
+                final int taskId = i + 1;
+
+                executor.submit(() -> {
+                    try {
+                        logger.info("Task {} searching for: {}", taskId, title);
+
+                        var movie = client.getDatabase("sample_mflix")
+                                         .getCollection("movies")
+                                         .find(eq("title", title))
+                                         .first();
+
+                        if (movie != null) {
+                            foundCount.incrementAndGet();
+                            logger.info("Task {} FOUND: {} ({})", taskId, title, movie.getInteger("year", 0));
+                        } else {
+                            notFoundCount.incrementAndGet();
+                            logger.info("Task {} NOT FOUND: {}", taskId, title);
+                        }
+                    } catch (Exception e) {
+                        logger.error("Task {} ERROR searching for {}: {}", taskId, title, e.getMessage());
+                    }
+                });
+            }
+
+            // Shutdown executor and wait for completion
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    logger.warn("Tasks did not complete within 60 seconds");
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                executor.shutdownNow();
+            }
+
+            logger.info("Search completed! Found: {}, Not Found: {}, Total: {}",
+                       foundCount.get(), notFoundCount.get(), MOVIE_TITLES.size());
+
+        } catch (Exception e) {
+            logger.error("Error occurred", e);
+        }
     }
 }
