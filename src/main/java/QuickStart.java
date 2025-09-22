@@ -21,6 +21,7 @@ import static com.mongodb.client.model.Filters.eq;
  * Tests connection pool behavior under concurrent load.
  */
 public class QuickStart {
+
     private static final Logger logger = LoggerFactory.getLogger(QuickStart.class);
 
     private static final List<String> MOVIE_TITLES = Arrays.asList(
