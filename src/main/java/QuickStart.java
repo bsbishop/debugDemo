@@ -63,9 +63,10 @@ public class QuickStart {
             }
         };
 
+        // Note: These will be 0/null until connectionPoolCreated event fires
         MDC.put("size", String.valueOf(connectionPoolListener.getSize()));
         MDC.put("checkedOutCount", String.valueOf(connectionPoolListener.getCheckedOutCount()));
-        // MDC.put("maxSize", String.valueOf(connectionPoolListener.getMaxSize()));
+        // MDC.put("maxSize", String.valueOf(connectionPoolListener.getMaxSize())); // Will be null here!
 
         MongoClientSettings settings =
                 MongoClientSettings.builder()
@@ -83,7 +84,13 @@ public class QuickStart {
                 MongoDatabase database = mongoClient.getDatabase("sample_mflix");
                 MongoCollection<Document> collection = database.getCollection("movies");
                 Document doc = collection.find(eq("title", "Back to the Future")).first();
-                // logger.info(connectionPoolListener.toString());
+
+                // Now the pool is created and we can access the stats
+                logger.info("Pool Stats - CheckedOut: {}, Size: {}, MaxSize: {}",
+                    connectionPoolListener.getCheckedOutCount(),
+                    connectionPoolListener.getSize(),
+                    connectionPoolListener.getMaxSize());
+
                 if (doc != null) {
                     System.out.println(doc.toJson());
                 } else {
