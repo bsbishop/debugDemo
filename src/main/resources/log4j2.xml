@@ -7,7 +7,7 @@
             </encoder>
         </appender>
         <Console name="Console" target="SYSTEM_OUT" class="ch.qos.logback.core.ConsoleAppender">
-            <PatternLayout pattern="CONSOLE: %d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg MDC: [%X{size} / %X{checkedOutCount} / {maxSize}]%n"/>
+            <PatternLayout pattern="CONSOLE: %d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg MDC: [%X{size} / %X{checkedOutCount} / %X{maxSize}]%n"/>
         </Console>
     </Appenders>
     <Loggers>
