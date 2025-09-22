@@ -24,6 +24,7 @@ import com.mongodb.event.ConnectionCheckedOutEvent;
 import com.mongodb.event.ConnectionClosedEvent;
 import com.mongodb.event.ConnectionCreatedEvent;
 import com.mongodb.event.ConnectionPoolListener;
+import com.mongodb.event.ConnectionPoolCreatedEvent;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -84,6 +85,12 @@ public class PoolStatsListener implements ConnectionPoolListener, ConnectionPool
     @Override
     public void connectionClosed(ConnectionClosedEvent event) {
         size.decrementAndGet();
+    }
+
+    @Override
+    public void connectionPoolCreated(ConnectionPoolCreatedEvent event) {
+        this.serverAddress = event.getServerId().getAddress();
+        this.settings = event.getSettings();
     }
 
 }
