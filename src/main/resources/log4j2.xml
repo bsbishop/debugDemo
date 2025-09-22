@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="INFO">
     <Appenders>
-        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>STDOUT %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg MDC:[%X{size} / %X{checkedOutCount}/ {maxSize}]%n</pattern>
-            </encoder>
-        </appender>
         <Console name="Console" target="SYSTEM_OUT" class="ch.qos.logback.core.ConsoleAppender">
-            <PatternLayout pattern="CONSOLE: %d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg MDC: [%X{size} / %X{checkedOutCount} / %X{maxSize}]%n"/>
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg MDC: [%X{size} / %X{checkedOutCount} / %X{maxSize}]%n"/>
         </Console>
     </Appenders>
     <Loggers>

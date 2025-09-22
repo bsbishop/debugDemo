@@ -31,17 +31,7 @@ public class QuickStart {
         logger.debug("BSB Starting...");
 
         // Replace the placeholder with your MongoDB deployment's connection string
-        ConnectionString uri = new ConnectionString("mongodb+srv://bsbishop:wpxy699M!@sandbox.vcdhe.mongodb.net/?retryWrites=true&w=majority&appName=sandbox");
-
-        // JMXConnectionPoolListener connectionPoolListener = new JMXConnectionPoolListener();
-
-//        PoolStatsListener poolStatsListener = new PoolStatsListener();
-
-// Set poolStats MDC before logging
-//        MDC.put("poolStats", poolStatsListener.getCurrentStats());
- //       Document result = database.runCommand(ping); // run some ops
-// clear it
-//        MDC.clear();
+        ConnectionString uri = new ConnectionString("mongodb+srv://userid:password@sandbox.vcdhe.mongodb.net/?retryWrites=true&w=majority&appName=sandbox");
 
         PoolStatsListener connectionPoolListener = new PoolStatsListener() {
             @Override
@@ -67,6 +57,7 @@ public class QuickStart {
                 super.connectionClosed(e);
                 MDC.put("size", String.valueOf(getSize()));
             }
+
             @Override
             public void connectionCheckOutStarted(ConnectionCheckOutStartedEvent e) {
                 // Update MDC with current pool stats
@@ -120,10 +111,6 @@ public class QuickStart {
                         .build();
 
         try (MongoClient mongoClient = MongoClients.create(settings)) {
-            System.out.println("Navigate to JConsole to see your connection pools...");
-            // Pauses the code execution so you can navigate to JConsole and inspect your connection pools
-            // Thread.sleep(30 * 1000);
-            // System.out.println("Starting...");
             for (int i = 0; i < 1; i++){
 
                 MongoDatabase database = mongoClient.getDatabase("sample_mflix");
@@ -140,20 +127,12 @@ public class QuickStart {
                 }
                 Document doc = collection.find(eq("title", "Back to the Future")).first();
 
-                // Now the pool is created and we can access the stats
-                logger.info("Pool Stats - CheckedOut: {}, Size: {}, MaxSize: {}",
-                    connectionPoolListener.getCheckedOutCount(),
-                    connectionPoolListener.getSize(),
-                    connectionPoolListener.getMaxSize());
-
                 if (doc != null) {
                     System.out.println(doc.toJson());
                 } else {
                     System.out.println("No matching documents found.");
                 }
             }
-            System.out.println("Done.");
-//            Thread.sleep(Long.MAX_VALUE);
         } catch (Exception e) {
             e.printStackTrace();
         }
